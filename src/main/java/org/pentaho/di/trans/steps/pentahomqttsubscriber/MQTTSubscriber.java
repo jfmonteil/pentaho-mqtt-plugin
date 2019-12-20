@@ -28,6 +28,11 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+//Adding Persistence store (for CleanSession=false)
+import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+//-----
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettlePluginException;
@@ -63,6 +68,7 @@ import java.util.List;
 public class MQTTSubscriber extends BaseStep implements StepInterface {
 
   protected boolean m_reconnectFailed;
+  protected boolean m_isInit=false; // Added this for persistence. We need to be sure init is done before processing unconsumed messages at broker reconnection
 
   public MQTTSubscriber( StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta,
       Trans trans ) {
@@ -75,7 +81,7 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
 
       if ( first ) {
         first = false;
-
+        logBasic("process row first");
         if ( ( (MQTTSubscriberData) sdi ).m_executionDuration > 0 ) {
           ( (MQTTSubscriberData) sdi ).m_startTime = new Date();
         }
@@ -114,7 +120,7 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
           logBasic( "Disconnecting from MQTT broker" );
           data.m_client.disconnect();
         }
-        data.m_client.close();
+		data.m_client.close();
         data.m_client = null;
       } catch ( MqttException e ) {
         logError( BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.ErrorClosingMQTTClient.Message" ), e );
@@ -128,7 +134,8 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
         configureConnection( (MQTTSubscriberMeta) smi, (MQTTSubscriberData) sdi );
         String runFor = ( (MQTTSubscriberMeta) smi ).getExecuteForDuration();
         try {
-          ( (MQTTSubscriberData) sdi ).m_executionDuration = Long.parseLong( runFor );
+
+		  ( (MQTTSubscriberData) sdi ).m_executionDuration = Long.parseLong( runFor );
         } catch ( NumberFormatException e ) {
           logError( e.getMessage(), e );
           return false;
@@ -152,7 +159,7 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
         logError( e.getMessage(), e );
         return false;
       }
-
+      m_isInit=true;
       return true;
     }
 
@@ -161,7 +168,6 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
 
   public void dispose( StepMetaInterface smi, StepDataInterface sdi ) {
     MQTTSubscriberData data = (MQTTSubscriberData) sdi;
-
     shutdown( data );
     super.dispose( smi, sdi );
   }
@@ -172,10 +178,21 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
     shutdown( data );
     super.stopRunning( smi, sdi );
   }
+  
+  //Adding creation of persistence store 
+  public MqttClientPersistence getPersistence(String path) {
+        if (path==null || path.length()==0) {
+            logBasic( BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.Message.MemoryPersitence" ) );
+            return new MemoryPersistence();
+        } else {
+			logBasic( BaseMessages.getString( MQTTPublisherMeta.PKG,"MQTTClientStep.Message.PathPersitence",path));
+            return new MqttDefaultFilePersistence(path);
+        }
+    }
 
   protected void configureConnection( MQTTSubscriberMeta meta, MQTTSubscriberData data ) throws KettleException {
     if ( data.m_client == null ) {
-      String broker = environmentSubstitute( meta.getBroker() );
+	  String broker = environmentSubstitute( meta.getBroker() );
       if ( Const.isEmpty( broker ) ) {
         throw new KettleException(
             BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.Error.NoBrokerURL" ) );
@@ -207,8 +224,18 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
         qoss[i] = qos;
       }
       try {
-        data.m_client = new MqttClient( broker, clientId );
-
+		Boolean isCleanSession=meta.isCleanSession();
+		//Handling Persistence Store if cleanSession=false
+		MqttClientPersistence persistenceStore=null;
+		// Handling persistenceStore in memory or on disk
+		if(isCleanSession==false){
+				persistenceStore=getPersistence(meta.getPath());		
+		}
+		//
+        if(!isCleanSession){
+			data.m_client = new MqttClient( broker, clientId, persistenceStore );
+		}
+		else data.m_client = new MqttClient( broker, clientId);
         MqttConnectOptions connectOptions = new MqttConnectOptions();
         if ( meta.isRequiresAuth() ) {
           connectOptions.setUserName( environmentSubstitute( meta.getUsername() ) );
@@ -220,7 +247,12 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
                   environmentSubstitute( meta.getSSLCertFile() ), environmentSubstitute( meta.getSSLKeyFile() ),
                   environmentSubstitute( meta.getSSLKeyFilePass() ) ) );
         }
-        connectOptions.setCleanSession( true );
+		
+		
+		connectOptions.setCleanSession( isCleanSession); //Adding Clean Session option true=Clean session, false=persistence management
+        
+		logBasic( BaseMessages
+            .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.CreateMQTTClient.MessageEarly", broker, clientId,Boolean.toString(isCleanSession) ) );
 
         String timeout = environmentSubstitute( meta.getTimeout() );
         String keepAlive = environmentSubstitute( meta.getKeepAliveInterval() );
@@ -240,18 +272,20 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
         }
 
         logBasic( BaseMessages
-            .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.CreateMQTTClient.Message", broker, clientId ) );
-
+            .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.CreateMQTTClient.Message", broker, clientId,Boolean.toString(meta.isCleanSession()) ) );
         data.m_client.setCallback( new SubscriberCallback( data, meta ) );
         data.m_client.connect( connectOptions );
+        if(data.m_client.isConnected()){ //adding this in case cleansession=flse otherwise exception
+			data.m_client.subscribe( resolvedTopics.toArray( new String[resolvedTopics.size()] ), qoss );
+					logBasic(BaseMessages.getString( MQTTPublisherMeta.PKG,"MQTTClientStep.DebugMessage",4));
+		}
 
-        data.m_client.subscribe( resolvedTopics.toArray( new String[resolvedTopics.size()] ), qoss );
       } catch ( Exception e ) {
         throw new KettleException(
             BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.ErrorCreateMQTTClient.Message", broker ),
             e );
       }
-    }
+    } else {logBasic( BaseMessages.getString( MQTTPublisherMeta.PKG,"MQTTClientStep.DebugMessage","data cleint not null"));}
   }
 
   protected class SubscriberCallback implements MqttCallback {
@@ -263,7 +297,7 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
     public SubscriberCallback( MQTTSubscriberData data, MQTTSubscriberMeta meta ) throws KettlePluginException {
       m_data = data;
       m_meta = meta;
-
+      logBasic(BaseMessages.getString( MQTTPublisherMeta.PKG,"MQTTClientStep.DebugMessage","message callback"));
       m_messageValueMeta =
           ValueMetaFactory.createValueMeta( "Message", ValueMetaFactory.getIdForValueMeta( m_meta.getMessageType() ) );
     }
@@ -275,7 +309,9 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
           .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.Log.LostConnectionToBroker", throwable.getMessage() ) );
       logBasic( BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.Log.AttemptingToReconnect" ) );
       try {
-        configureConnection( m_meta, m_data );
+		if(!m_reconnectFailed){
+		   configureConnection( m_meta, m_data ); //to debug, only one reconnection try do not reconnect a thousand times
+		}
       } catch ( KettleException e ) {
         logError( e.getMessage(), e );
         m_reconnectFailed = true;
@@ -283,7 +319,19 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
     }
 
     @Override public void messageArrived( String topic, MqttMessage mqttMessage ) throws Exception {
-      Object[] outRow = RowDataUtil.allocateRowData( m_data.m_outputRowMeta.size() );
+      
+	  
+	  if(m_data.m_outputRowMeta==null) // if clean session=false, we might reicieve messages before processrows has been called if the broker sends back all unconsumed mesages
+			{
+				while(!m_isInit)
+				{
+				//Wait until assync init done
+				}			
+			}
+		
+		  
+
+	  Object[] outRow = RowDataUtil.allocateRowData( m_data.m_outputRowMeta.size() );
       outRow[0] = topic;
       Object converted = null;
 
@@ -328,6 +376,7 @@ public class MQTTSubscriber extends BaseStep implements StepInterface {
           throw new KettleException( "Unhandled type" );
       }
       putRow( m_data.m_outputRowMeta, outRow );
+	  
     }
 
     @Override public void deliveryComplete( IMqttDeliveryToken iMqttDeliveryToken ) {

@@ -93,8 +93,13 @@ public class MQTTPublisher extends BaseStep implements StepInterface {
                   environmentSubstitute( meta.getSSLCertFile() ), environmentSubstitute( meta.getSSLKeyFile() ),
                   environmentSubstitute( meta.getSSLKeyFilePass() ) ) );
         }
-        connectOptions.setCleanSession( true );
-
+		connectOptions.setCleanSession( meta.isCleanSession() ); //adding cleanSession Managmeent
+        String lwTopic=meta.getLastWillTopic();
+		String lwMessage=meta.getLastWillMessage();
+		if(lwTopic!=null && lwMessage!=null)
+		{
+		connectOptions.setWill(meta.getLastWillTopic(),meta.getLastWillMessage().getBytes(),0,meta.isLastWillRetained());//adding Lastwill
+		}
         String timeout = environmentSubstitute( meta.getTimeout() );
         try {
           connectOptions.setConnectionTimeout( Integer.parseInt( timeout ) );
@@ -104,7 +109,7 @@ public class MQTTPublisher extends BaseStep implements StepInterface {
         }
 
         logBasic( BaseMessages
-            .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.CreateMQTTClient.Message", broker, clientId ) );
+            .getString( MQTTPublisherMeta.PKG, "MQTTClientStep.CreateMQTTClient.Message", broker, clientId,Boolean.toString(meta.isCleanSession()) ) );
         data.m_client.connect( connectOptions );
 
       } catch ( Exception e ) {
@@ -204,9 +209,11 @@ public class MQTTPublisher extends BaseStep implements StepInterface {
 
         MqttMessage mqttMessage = new MqttMessage( message );
         mqttMessage.setQos( data.m_qos );
-
+		mqttMessage.setRetained(meta.isRetained()); //Adding retain option
+        
         logBasic( BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientStep.Log.SendingData", data.m_topic,
-            Integer.toString( data.m_qos ) ) );
+            Integer.toString( data.m_qos ),Boolean.toString(meta.isRetained()) ));
+		
         if ( isRowLevel() ) {
           logRowlevel( data.m_inputFieldMeta.getString( r[data.m_inputFieldNr] ) );
         }

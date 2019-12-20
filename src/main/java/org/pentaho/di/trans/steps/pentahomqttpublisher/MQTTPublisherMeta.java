@@ -67,7 +67,14 @@ import java.util.List;
   private String clientId;
   private String timeout = "30"; // seconds according to the docs
   private String qos = "0";
-  private boolean requiresAuth;
+  private Boolean requiresAuth=false;
+  private Boolean cleanSession=true; // Clean Session
+  private String lastWillMessage; //Last Will message
+  private String lastWillTopic; //Last Will Topic  
+  private Boolean lastWillRetained=false; //Last Will retain Mode
+
+  
+  private Boolean retained=false; // Retained mode indicator
   private String username;
   private String password;
   private String sslCaFile;
@@ -274,6 +281,75 @@ import java.util.List;
   public void setSSLKeyFilePass( String sslKeyFilePass ) {
     this.sslKeyFilePass = sslKeyFilePass;
   }
+  
+  /**
+   * @param CleanSession True/False
+   */
+  public void setCleanSession(Boolean cleanSession){
+	this.cleanSession=cleanSession;
+  }	
+  
+    /**
+   * @return Cif clean session is true or false
+   */
+  public boolean isCleanSession(){
+	return cleanSession;
+  }	
+
+  /**
+   * @param lastWill Last Will Message
+   */
+  public void setLastWillMessage( String lastWillMessage ) {
+    this.lastWillMessage = lastWillMessage;
+  } 
+  
+  /**
+   * @return Client last will message
+   */
+  public String getLastWillMessage() {
+	  return lastWillMessage;
+  }
+  /**
+   * @param lastWill Last Will Message
+   */
+  public void setLastWillTopic( String lastWillTopic ) {
+    this.lastWillTopic = lastWillTopic;
+  } 
+  
+  /**
+   * @return Client last will message
+   */
+  public String getLastWillTopic() {
+	  return lastWillTopic;
+  }
+  
+  /**
+   * @param Retained Last Will message mode True/False
+   */
+  public void setLastWillRetained(boolean lastWillRetained){
+	this.lastWillRetained=lastWillRetained;
+  }	
+
+    /**
+   * @return if message is in retain mode
+   */
+  public boolean isLastWillRetained(){
+	return lastWillRetained;
+  }	 
+  
+  /**
+   * @param Retained message mode True/False
+   */
+  public void setRetained(boolean retained){
+	this.retained=retained;
+  }	
+
+    /**
+   * @return if message is in retain mode
+   */
+  public boolean isRetained(){
+	return retained;
+  }	
 
   @Override
   public void check( List<CheckResultInterface> remarks, TransMeta transMeta, StepMeta stepMeta, RowMetaInterface prev,
@@ -342,6 +418,12 @@ import java.util.List;
       requiresAuth = Boolean.parseBoolean( XMLHandler.getTagValue( stepnode, "REQUIRES_AUTH" ) );
       username = XMLHandler.getTagValue( stepnode, "USERNAME" );
       password = XMLHandler.getTagValue( stepnode, "PASSWORD" );
+	  lastWillTopic= XMLHandler.getTagValue( stepnode, "LASTWILLTOPIC" );
+	  lastWillMessage= XMLHandler.getTagValue( stepnode, "LASTWILLMESSAGE" );
+	  lastWillRetained= Boolean.parseBoolean( XMLHandler.getTagValue( stepnode,"LASTWILLRETAINED" ));
+	  retained= Boolean.parseBoolean( XMLHandler.getTagValue( stepnode,"RETAINED" ));
+	  cleanSession=Boolean.parseBoolean( XMLHandler.getTagValue( stepnode,"CLEANSESSION"));
+
       if ( !Const.isEmpty( password ) ) {
         password = Encr.decryptPasswordOptionallyEncrypted( password );
       }
@@ -392,7 +474,26 @@ import java.util.List;
       retval.append( "    " )
           .append( XMLHandler.addTagValue( "PASSWORD", Encr.encryptPasswordIfNotUsingVariables( password ) ) );
     }
-
+	 if ( cleanSession != null ) {
+      retval.append( "    " )
+          .append( XMLHandler.addTagValue( "CLEANSESSION", Boolean.toString(cleanSession ) )  );
+    }
+    if ( retained != null ) {
+      retval.append( "    " )
+          .append( XMLHandler.addTagValue( "RETAINED", Boolean.toString(retained ) ) );
+    }
+	if ( lastWillTopic != null ) {
+      retval.append( "    " )
+          .append( XMLHandler.addTagValue( "LASTWILLTOPIC",  lastWillTopic )  );
+    }
+	if ( lastWillMessage != null ) {
+      retval.append( "    " )
+          .append( XMLHandler.addTagValue( "LASTWILLMESSAGE", lastWillMessage) );
+    }
+	if ( lastWillRetained!= null ) {
+      retval.append( "    " )
+          .append( XMLHandler.addTagValue( "LASTWILLRETAINED", Boolean.toString(lastWillRetained ) ) );
+    }
     if ( sslCaFile != null || sslCertFile != null || sslKeyFile != null || sslKeyFilePass != null ) {
       retval.append( "    " ).append( XMLHandler.openTag( "SSL" ) ).append( Const.CR );
       if ( sslCaFile != null ) {
@@ -426,8 +527,14 @@ import java.util.List;
       requiresAuth = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "REQUIRES_AUTH" ) );
       username = rep.getStepAttributeString( stepId, "USERNAME" );
       password = rep.getStepAttributeString( stepId, "PASSWORD" );
+      cleanSession = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "CLEANSESSION" ));
+	  retained = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "RETAINED" )); 
+	  lastWillTopic = rep.getStepAttributeString( stepId, "LASTWILLTOPIC" );
+	  lastWillMessage = rep.getStepAttributeString( stepId, "LASTWILLMESSAGE" );
+	  lastWillRetained = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "LASTWILLRETAINED" )); 
 
-      sslCaFile = rep.getStepAttributeString( stepId, "SSL_CA_FILE" );
+      
+	  sslCaFile = rep.getStepAttributeString( stepId, "SSL_CA_FILE" );
       sslCertFile = rep.getStepAttributeString( stepId, "SSL_CERT_FILE" );
       sslKeyFile = rep.getStepAttributeString( stepId, "SSL_KEY_FILE" );
       sslKeyFilePass = rep.getStepAttributeString( stepId, "SSL_KEY_FILE_PASS" );
@@ -465,7 +572,21 @@ import java.util.List;
       if ( password != null ) {
         rep.saveStepAttribute( transformationId, stepId, "PASSWORD", password );
       }
-
+	  if ( cleanSession != null ) {
+        rep.saveStepAttribute( transformationId, stepId, "CLEANSESSION", cleanSession );
+      }
+	  if ( retained != null ) {
+        rep.saveStepAttribute( transformationId, stepId, "RETAINED", retained );
+      }
+	  if ( lastWillTopic != null ) {
+        rep.saveStepAttribute( transformationId, stepId, "LASTWILLTOPIC", lastWillTopic );
+      }
+	  if ( lastWillMessage != null ) {
+        rep.saveStepAttribute( transformationId, stepId, "LASTWILLMESSAGE", lastWillMessage );
+      }
+	  if ( lastWillRetained != null ) {
+        rep.saveStepAttribute( transformationId, stepId, "LASTWILLRETAINED", lastWillRetained );
+      }
       if ( sslCaFile != null ) {
         rep.saveStepAttribute( transformationId, stepId, "SSL_CA_FILE", sslCaFile );
       }

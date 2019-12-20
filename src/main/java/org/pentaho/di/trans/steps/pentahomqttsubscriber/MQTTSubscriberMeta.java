@@ -77,6 +77,9 @@ import java.util.List;
   private String m_sslCertFile;
   private String m_sslKeyFile;
   private String m_sslKeyFilePass;
+  
+  private Boolean m_cleanSession=true; // Clean Session
+  private String m_path; //Adding possiblity to persiste datastore (Clean Session = false) on file
 
   /**
    * Whether to allow messages of type object to be deserialized off the wire
@@ -305,6 +308,34 @@ import java.util.List;
   public boolean getAllowReadMessageOfTypeObject() {
     return m_allowReadObjectMessageType;
   }
+  
+    /**
+   * @param CleanSession True/False
+   */
+  public void setCleanSession(Boolean cleanSession){
+	m_cleanSession=cleanSession;
+  }	
+  
+    /**
+   * @return Cif clean session is true or false
+   */
+  public boolean isCleanSession(){
+	return m_cleanSession;
+  }	
+  
+   /**
+   * @return path to persistence store
+   */
+  public String getPath() {
+    return m_path;
+  }
+
+  /**
+   * @param sslKeyFilePass Client key file m_password
+   */
+  public void setPath( String path ) {
+    m_path = path;
+  }
 
   @Override public void setDefault() {
 
@@ -342,6 +373,7 @@ import java.util.List;
     m_executeForDuration = XMLHandler.getTagValue( stepnode, "EXECUTE_FOR_DURATION" );
     m_qos = XMLHandler.getTagValue( stepnode, "QOS" );
     m_requiresAuth = Boolean.parseBoolean( XMLHandler.getTagValue( stepnode, "REQUIRES_AUTH" ) );
+	m_cleanSession=Boolean.parseBoolean( XMLHandler.getTagValue( stepnode,"CLEANSESSION"));
 
     m_username = XMLHandler.getTagValue( stepnode, "USERNAME" );
     m_password = XMLHandler.getTagValue( stepnode, "PASSWORD" );
@@ -404,8 +436,13 @@ import java.util.List;
       retval.append( "    " )
           .append( XMLHandler.addTagValue( "PASSWORD", Encr.encryptPasswordIfNotUsingVariables( m_password ) ) );
     }
-
     retval.append( "    " )
+        .append( XMLHandler.addTagValue( "CLEANSESSION", Boolean.toString( m_cleanSession) ) );
+    
+	if ( !Const.isEmpty( m_path ) ) {
+      retval.append( "    " ).append( XMLHandler.addTagValue( "PATH", m_path ) );
+    }
+	retval.append( "    " )
         .append( XMLHandler.addTagValue( "READ_OBJECTS", Boolean.toString( m_allowReadObjectMessageType ) ) );
 
     if ( !Const.isEmpty( m_sslCaFile ) || !Const.isEmpty( m_sslCertFile ) || !Const.isEmpty( m_sslKeyFile ) || !Const
@@ -452,7 +489,9 @@ import java.util.List;
     m_requiresAuth = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "REQUIRES_AUTH" ) );
     m_username = rep.getStepAttributeString( stepId, "USERNAME" );
     m_password = rep.getStepAttributeString( stepId, "PASSWORD" );
-    m_allowReadObjectMessageType = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "READ_OBJECTS" ) );
+    m_cleanSession = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "CLEANSESSION" ) );
+    m_path = rep.getStepAttributeString( stepId, "PATH" );
+	m_allowReadObjectMessageType = Boolean.parseBoolean( rep.getStepAttributeString( stepId, "READ_OBJECTS" ) );
 
     m_sslCaFile = rep.getStepAttributeString( stepId, "SSL_CA_FILE" );
     m_sslCertFile = rep.getStepAttributeString( stepId, "SSL_CERT_FILE" );
@@ -497,6 +536,10 @@ import java.util.List;
     if ( !Const.isEmpty( m_password ) ) {
       rep.saveStepAttribute( transformationId, stepId, "PASSWORD", m_password );
     }
+	if ( !Const.isEmpty( m_path ) ) {
+      rep.saveStepAttribute( transformationId, stepId, "PATH", m_path);
+    }
+    rep.saveStepAttribute( transformationId, stepId, "CLEANSESSION", Boolean.toString( m_cleanSession ) );//CleanSession
 
     rep.saveStepAttribute( transformationId, stepId, "READ_OBJECTS", Boolean.toString( m_allowReadObjectMessageType ) );
 

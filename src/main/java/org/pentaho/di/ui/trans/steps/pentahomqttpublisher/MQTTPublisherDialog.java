@@ -69,7 +69,11 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
   private MQTTPublisherMeta producerMeta;
 
   private CCombo m_wInputField;
+  private Label m_wlLastWillTopicName;
+  private CCombo m_wLastWillTopicName;
+  private Label m_wlLastWillRetain;
 
+  
   private CTabFolder m_wTabFolder;
 
   private CTabItem m_wGeneralTab;
@@ -79,8 +83,13 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
   private TextVar m_wClientID;
   private TextVar m_wTimeout;
   private TextVar m_wQOS;
+  private TextVar m_wLastWillMessage;
 
   private Button m_wTopicFromIncomingField;
+  private Button m_wIsCleanSession;  
+  private Button m_wLastWillRetain;
+  
+  private Button m_wRetain;
 
   private CTabItem m_wCredentialsTab;
   private Button m_wRequiresAuth;
@@ -123,7 +132,13 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
         producerMeta.setChanged();
       }
     };
-    changed = producerMeta.hasChanged();
+	SelectionAdapter lsSa=new SelectionAdapter() {
+	  public void modifySelect( SelectionEvent e ) {
+        producerMeta.setChanged();
+      }
+	};
+	    
+	changed = producerMeta.hasChanged();
 
     FormLayout formLayout = new FormLayout();
     formLayout.marginWidth = Const.FORM_MARGIN;
@@ -335,8 +350,109 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
     fdQOS.right = new FormAttachment( 100, 0 );
     m_wQOS.setLayoutData( fdQOS );
     lastControl = m_wQOS;
-
-    FormData fdGeneralTabComp = new FormData();
+	
+	//Clean Session
+	Label wlIsCleanSession = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlIsCleanSession.setText(
+        BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientDialog.IsCleanSession.Label" ) );
+    props.setLook( wlIsCleanSession);
+    FormData fdClean = new FormData();
+    fdClean.top = new FormAttachment( lastControl, margin );
+    fdClean.left = new FormAttachment( 0, 0 );
+    fdClean.right = new FormAttachment( middle, -margin );
+    wlIsCleanSession.setLayoutData( fdClean );
+    m_wIsCleanSession = new Button( wGeneralTabComp, SWT.CHECK );
+    props.setLook( m_wIsCleanSession );
+	m_wIsCleanSession.addSelectionListener(lsSa);
+	fdClean = new FormData();
+    fdClean.top = new FormAttachment( lastControl, margin );
+    fdClean.left = new FormAttachment( middle, 0 );
+    fdClean.right = new FormAttachment( 100, 0 );
+    m_wIsCleanSession.setLayoutData( fdClean );
+    lastControl = m_wIsCleanSession;
+	
+	//Retain
+	Label wlRetain = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlRetain.setText(
+        BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientDialog.Retain.Label" ) );
+    props.setLook( wlRetain );
+    FormData fdRetain = new FormData();
+    fdRetain.top = new FormAttachment( lastControl, margin );
+    fdRetain.left = new FormAttachment( 0, 0 );
+    fdRetain.right = new FormAttachment( middle, -margin );
+    wlRetain.setLayoutData( fdRetain );
+    m_wRetain = new Button( wGeneralTabComp, SWT.CHECK );
+    props.setLook( m_wRetain );
+	m_wRetain.addSelectionListener(lsSa);
+	fdRetain = new FormData();
+    fdRetain.top = new FormAttachment( lastControl, margin );
+    fdRetain.left = new FormAttachment( middle, 0 );
+    fdRetain.right = new FormAttachment( 100, 0 );
+	m_wRetain.setLayoutData( fdRetain );
+    lastControl = m_wRetain;
+	
+	// Last will Topic name
+    m_wlLastWillTopicName = new Label( wGeneralTabComp, SWT.RIGHT );
+    m_wlLastWillTopicName.setText( BaseMessages
+        .getString( org.pentaho.di.trans.steps.pentahomqttpublisher.MQTTPublisherMeta.PKG,
+            "MQTTClientDialog.LastWillTopicName.Label" ) );
+    props.setLook( m_wlLastWillTopicName );
+    FormData fdlLastWillTopicName = new FormData();
+    fdlLastWillTopicName.top = new FormAttachment( lastControl, margin );
+    fdlLastWillTopicName.left = new FormAttachment( 0, 0 );
+    fdlLastWillTopicName.right = new FormAttachment( middle, -margin );
+    m_wlLastWillTopicName.setLayoutData( fdlLastWillTopicName );
+    m_wLastWillTopicName = new CCombo( wGeneralTabComp, SWT.SINGLE | SWT.LEFT | SWT.BORDER );
+    props.setLook( m_wLastWillTopicName );
+    m_wLastWillTopicName.addModifyListener( lsMod );
+    FormData fdLastWillTopicName = new FormData();
+    fdLastWillTopicName.top = new FormAttachment( lastControl, margin );
+    fdLastWillTopicName.left = new FormAttachment( middle, 0 );
+    fdLastWillTopicName.right = new FormAttachment( 100, 0 );
+    m_wLastWillTopicName.setLayoutData( fdLastWillTopicName );
+    lastControl = m_wLastWillTopicName;
+	
+	// Last Will Message
+    Label wlLastWillMessage = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlLastWillMessage.setText( BaseMessages.getString( org.pentaho.di.trans.steps.pentahomqttpublisher.MQTTPublisherMeta.PKG,
+        "MQTTClientDialog.LastWillMessage.Label" ) );
+    props.setLook( wlLastWillMessage );
+    FormData fdlLastWillMessage = new FormData();
+    fdlLastWillMessage.top = new FormAttachment( lastControl, margin );
+    fdlLastWillMessage.left = new FormAttachment( 0, 0 );
+    fdlLastWillMessage.right = new FormAttachment( middle, -margin );
+    wlLastWillMessage.setLayoutData( fdlLastWillMessage );
+    m_wLastWillMessage = new TextVar( transMeta, wGeneralTabComp, SWT.SINGLE | SWT.LEFT | SWT.BORDER );
+    props.setLook( m_wLastWillMessage );
+    m_wLastWillMessage.addModifyListener( lsMod );
+    FormData fdLastWillMessage = new FormData();
+    fdLastWillMessage.top = new FormAttachment( lastControl, margin );
+    fdLastWillMessage.left = new FormAttachment( middle, 0 );
+    fdLastWillMessage.right = new FormAttachment( 100, 0 );
+    m_wLastWillMessage.setLayoutData( fdLastWillMessage );
+    lastControl = m_wLastWillMessage;
+	
+    //Last Will Retain
+	Label wlLastWillRetain = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlLastWillRetain.setText(
+        BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientDialog.LastWillRetain.Label" ) );
+    props.setLook( wlLastWillRetain );
+    FormData fdLastWillRetain = new FormData();
+    fdLastWillRetain.top = new FormAttachment( lastControl, margin );
+    fdLastWillRetain.left = new FormAttachment( 0, 0 );
+    fdLastWillRetain.right = new FormAttachment( middle, -margin );
+    wlLastWillRetain.setLayoutData( fdLastWillRetain );
+    m_wLastWillRetain = new Button( wGeneralTabComp, SWT.CHECK );
+    props.setLook( m_wLastWillRetain );
+	m_wRetain.addSelectionListener(lsSa);
+	fdLastWillRetain = new FormData();
+    fdLastWillRetain.top = new FormAttachment( lastControl, margin );
+    fdLastWillRetain.left = new FormAttachment( middle, 0 );
+    fdLastWillRetain.right = new FormAttachment( 100, 0 );
+	m_wLastWillRetain.setLayoutData( fdLastWillRetain );
+    lastControl = m_wLastWillRetain;
+    
+	FormData fdGeneralTabComp = new FormData();
     fdGeneralTabComp.left = new FormAttachment( 0, 0 );
     fdGeneralTabComp.top = new FormAttachment( 0, 0 );
     fdGeneralTabComp.right = new FormAttachment( 100, 0 );
@@ -694,7 +810,13 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
     m_wTimeout.setText( Const.NVL( producerMeta.getTimeout(), "10000" ) );
     m_wQOS.setText( Const.NVL( producerMeta.getQoS(), "0" ) );
 
-    m_wRequiresAuth.setSelection( producerMeta.isRequiresAuth() );
+    m_wIsCleanSession.setSelection( producerMeta.isCleanSession() );
+	m_wLastWillTopicName.setText(Const.NVL(producerMeta.getLastWillTopic(),""));
+    m_wLastWillMessage.setText(Const.NVL(producerMeta.getLastWillMessage(),""));
+	m_wLastWillRetain.setSelection( producerMeta.isLastWillRetained() );
+	m_wRetain.setSelection( producerMeta.isRetained() );
+	
+	m_wRequiresAuth.setSelection( producerMeta.isRequiresAuth() );
     m_wRequiresAuth.notifyListeners( SWT.Selection, new Event() );
 
     m_wUsername.setText( Const.NVL( producerMeta.getUsername(), "" ) );
@@ -727,8 +849,16 @@ public class MQTTPublisherDialog extends BaseStepDialog implements StepDialogInt
     producerMeta.setClientId( m_wClientID.getText() );
     producerMeta.setTimeout( m_wTimeout.getText() );
     producerMeta.setQoS( m_wQOS.getText() );
+	boolean isRetain=m_wRetain.getSelection();
+	producerMeta.setRetained(isRetain);
+    boolean isCleanSession=m_wIsCleanSession.getSelection();
+	producerMeta.setCleanSession(isCleanSession);
+    boolean isLastWillRetained=m_wLastWillRetain.getSelection();
+	producerMeta.setLastWillRetained(isLastWillRetained);
+	producerMeta.setLastWillTopic( m_wLastWillTopicName.getText() );
+    producerMeta.setLastWillMessage( m_wLastWillMessage.getText() );
 
-    boolean requiresAuth = m_wRequiresAuth.getSelection();
+	boolean requiresAuth = m_wRequiresAuth.getSelection();
     producerMeta.setRequiresAuth( requiresAuth );
     if ( requiresAuth ) {
       producerMeta.setUsername( m_wUsername.getText() );

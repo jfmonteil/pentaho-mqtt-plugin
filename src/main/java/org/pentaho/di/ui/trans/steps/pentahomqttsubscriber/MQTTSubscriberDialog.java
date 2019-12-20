@@ -86,10 +86,14 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
 
   private CTabItem m_wCredentialsTab;
   private Button m_wRequiresAuth;
+  private Button m_wIsCleanSession;  
   private Label m_wlUsername;
   private TextVar m_wUsername;
   private Label m_wlPassword;
   private TextVar m_wPassword;
+  //Path to persistence store
+  private Label m_wlPath;
+  private TextVar m_wPath;
 
   private CTabItem m_wSSLTab;
   private TextVar m_wCAFile;
@@ -133,6 +137,11 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
         m_subscriberMeta.setChanged();
       }
     };
+	SelectionAdapter lsSa=new SelectionAdapter() {
+	  public void modifySelect( SelectionEvent e ) {
+        m_subscriberMeta.setChanged();
+      }
+	};
     changed = m_subscriberMeta.hasChanged();
 
     FormLayout formLayout = new FormLayout();
@@ -279,6 +288,26 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
     fdClientID.right = new FormAttachment( 100, 0 );
     m_wClientID.setLayoutData( fdClientID );
     lastControl = m_wClientID;
+	
+   //Clean Session
+	Label wlIsCleanSession = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlIsCleanSession.setText(
+        BaseMessages.getString( MQTTPublisherMeta.PKG, "MQTTClientDialog.IsCleanSession.Label" ) );
+    props.setLook( wlIsCleanSession);
+    FormData fdClean = new FormData();
+    fdClean.top = new FormAttachment( lastControl, margin );
+    fdClean.left = new FormAttachment( 0, 0 );
+    fdClean.right = new FormAttachment( middle, -margin );
+    wlIsCleanSession.setLayoutData( fdClean );
+    m_wIsCleanSession = new Button( wGeneralTabComp, SWT.CHECK );
+    props.setLook( m_wIsCleanSession );
+	m_wIsCleanSession.addSelectionListener(lsSa);
+	fdClean = new FormData();
+    fdClean.top = new FormAttachment( lastControl, margin );
+    fdClean.left = new FormAttachment( middle, 0 );
+    fdClean.right = new FormAttachment( 100, 0 );
+    m_wIsCleanSession.setLayoutData( fdClean );
+    lastControl = m_wIsCleanSession;
 
     // QOS
     Label wlQOS = new Label( wGeneralTabComp, SWT.RIGHT );
@@ -300,6 +329,26 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
     fdQOS.right = new FormAttachment( 100, 0 );
     m_wQOS.setLayoutData( fdQOS );
     lastControl = m_wQOS;
+	
+	//path to persistence store
+	Label wlPath = new Label( wGeneralTabComp, SWT.RIGHT );
+    wlPath.setText( BaseMessages.getString( org.pentaho.di.trans.steps.pentahomqttpublisher.MQTTPublisherMeta.PKG,
+        "MQTTClientDialog.Path.Label" ) );
+    props.setLook( wlPath );
+    FormData fdlPath = new FormData();
+    fdlPath.top = new FormAttachment( lastControl, margin );
+    fdlPath.left = new FormAttachment( 0, 0 );
+    fdlPath.right = new FormAttachment( middle, -margin );
+    wlPath.setLayoutData( fdlPath );
+    m_wPath = new TextVar( transMeta, wGeneralTabComp, SWT.SINGLE | SWT.LEFT | SWT.BORDER );
+    props.setLook( m_wPath );
+    m_wPath.addModifyListener( lsMod );
+    FormData fdPath = new FormData();
+    fdPath.top = new FormAttachment( lastControl, margin );
+    fdPath.left = new FormAttachment( middle, 0 );
+    fdPath.right = new FormAttachment( 100, 0 );
+    m_wPath.setLayoutData( fdPath );
+    lastControl = m_wPath;
 
     // Execute for duration
     Label wExecuteForLab = new Label( wGeneralTabComp, SWT.RIGHT );
@@ -737,13 +786,16 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
     subscriberMeta.setKeepAliveInterval( m_wkeepAlive.getText() );
     subscriberMeta.setExecuteForDuration( m_wExecuteForDuration.getText() );
     subscriberMeta.setQoS( m_wQOS.getText() );
-
+    subscriberMeta.setPath( m_wPath.getText() ); //adding path to persistence store
     boolean requiresAuth = m_wRequiresAuth.getSelection();
     subscriberMeta.setRequiresAuth( requiresAuth );
     if ( requiresAuth ) {
       subscriberMeta.setUsername( m_wUsername.getText() );
       subscriberMeta.setPassword( m_wPassword.getText() );
     }
+	
+	boolean isCleanSession=m_wIsCleanSession.getSelection(); //Adding cleanSession
+	subscriberMeta.setCleanSession(isCleanSession);
 
     subscriberMeta.setAllowReadMessageOfTypeObject( m_wAllowObjectMessages.getSelection() );
 
@@ -777,6 +829,9 @@ public class MQTTSubscriberDialog extends BaseStepDialog implements StepDialogIn
     m_wkeepAlive.setText( Const.NVL( subscriberMeta.getKeepAliveInterval(), "60" ) );
     m_wQOS.setText( Const.NVL( subscriberMeta.getQoS(), "0" ) );
     m_wExecuteForDuration.setText( Const.NVL( subscriberMeta.getExecuteForDuration(), "0" ) );
+    
+	m_wIsCleanSession.setSelection( subscriberMeta.isCleanSession() );//Adding cleanSession
+    m_wPath.setText( Const.NVL( subscriberMeta.getPath(), "" ) ); //adding path to persistence store
 
     m_wRequiresAuth.setSelection( subscriberMeta.isRequiresAuth() );
     m_wRequiresAuth.notifyListeners( SWT.Selection, new Event() );
