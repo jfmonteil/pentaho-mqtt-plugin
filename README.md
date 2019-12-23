@@ -2,12 +2,19 @@ Pentaho MQTT IoT Plugin
 =======================
 
 The Pentaho MQTT Project is a plugin for the Pentaho Kettle engine which provides the ability to subscribe to, and publish to, MQTT topics on a MQTT broker.
+A few features are avaiable :
+- Keepalive
+- Quality Of Service
+- Last Will Message
+- Retained Message
+- Clean Session and persistence
+A few additional explainations here : https://www.linkedin.com/pulse/exploring-mqtt-cool-features-pentaho-demo-jean-francois-monteil/
 
 Building
 --------
 The Pentaho MQTT plugin is built using Maven.
 
-    $ git clone git://github.com/pentaho/pentaho-mqtt-plugin.git
+    $ git clone https://github.com/jfmonteil/pentaho-mqtt-plugin
     $ cd pentaho-mqtt-plugin
     $ mvn install
 

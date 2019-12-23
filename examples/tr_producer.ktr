@@ -2169,7 +2169,15 @@ Topic: truck_ds_address</note>
     <REQUIRES_AUTH>false</REQUIRES_AUTH>
     <CLEANSESSION>false</CLEANSESSION>
     <RETAINED>false</RETAINED>
+    <LASTWILLTOPIC/>
+    <LASTWILLMESSAGE/>
     <LASTWILLRETAINED>false</LASTWILLRETAINED>
+    <SSL>
+      <CA_FILE/>
+      <CERT_FILE/>
+      <KEY_FILE/>
+      <KEY_FILE_PASS/>
+    </SSL>
     <attributes/>
     <cluster_schema/>
     <remotesteps>
